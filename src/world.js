@@ -8,6 +8,7 @@ const spk=(x,s,n,cols,r,a)=>{x.globalAlpha=a;for(let i=0;i<n;i++){x.fillStyle=co
 const M=(c,r=.8,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:r,...o});
 
 export function buildWorld(scene){
+  const worldChildren=new Set(scene.children);
   const colliders=[],hit=[],tg=[],fans=[],lights=[],groups={},rooms=[];
   // [name,x0,z0,x1,z1,level] level 0 apartment, 1 roof, 2 both
   for(const [n,x0,z0,x1,z1,l] of [['living',0,0,7,5,0],['dining',7,0,14,5,0],['kitchen',10,5,14,10,0],['b1',0,5,4.5,10,0],['bath',4.5,5,6.5,10,0],
@@ -150,10 +151,39 @@ export function buildWorld(scene){
   at('rbath');const lRb=L(10.3,5.6,7.3);P(mats.tile,9,6,11.6,8.6,3.21,.6,cur);
   B(mats.white,11.2,3.4,6.7,.4,.4,.5,1);B(mats.white,11.35,3.75,6.7,.15,.35,.35,0);B(mats.white,10,4.05,8.3,.4,.15,.3,1);tap(10,4.2,8.3);
   Cy(mats.metal,10.6,4.6,8.45,.02,2.2,0);Cy(mats.bucket,9.5,3.35,8.2,.15,.3,1);Cy(mats.bucket,9.7,3.26,7.6,.07,.12,0);SW(9.1,4.4,8,lRb,Math.PI/2);
+  // Bengali apartment details: family-sized dining setup, clothes drying rack and lived-in balcony.
+  at('living');
+  B(mats.wood,5.1,.78,2.55,4.2,.06,1.15,0); // long reunion table
+  for(const x of [3.5,4.2,4.9,5.6]) chair(x,1.7,0,0,mats.wood);
+  for(const x of [3.5,4.2,4.9,5.6]) chair(x,3.4,Math.PI,0,mats.wood);
+  for(let i=0;i<7;i++){B(i%2?mats.red:mats.fabric2,.6+i*.9,1.35,-1.02,.55,.55,.035,0);B(mats.white,.6+i*.9,1.63,-1.02,.5,.035,.03,0);}
+  at('balcony');
+  B(mats.metal,3.5,.92,-1.25,6.2,.035,.035,0);B(mats.metal,3.5,1.48,-1.25,6.2,.035,.035,0);
+  for(let i=0;i<8;i++)B(i%3===0?mats.red:i%3===1?mats.white:mats.fabric2,.7+i*.72,1.2,-1.25,.58,.42,.025,0);
   // weathering
   stain(10,4.6,8.69,1.4,0);stain(10,4.4,5.92,1,Math.PI);stain(16.24,2.5,5,1.4,-Math.PI/2);stain(2,2.2,4.92,1,Math.PI);stain(.08,2.3,1,1.1,Math.PI/2);
 
-  return{colliders,hit,mats,
+  // Enlarge the whole apartment while keeping its centre aligned with the neighbourhood.
+  // Geometry, lights, interaction targets, room visibility and collision volumes are transformed together.
+  const SCALE_XZ=1.62,SCALE_Y=1.22,CX=7,CZ=5;
+  for(const o of scene.children){
+    if(worldChildren.has(o))continue;
+    o.position.x=CX+(o.position.x-CX)*SCALE_XZ;
+    o.position.z=CZ+(o.position.z-CZ)*SCALE_XZ;
+    o.position.y*=SCALE_Y;
+    o.scale.x*=SCALE_XZ;o.scale.z*=SCALE_XZ;o.scale.y*=SCALE_Y;
+  }
+  for(const c of colliders){
+    c.x0=CX+(c.x0-CX)*SCALE_XZ;c.x1=CX+(c.x1-CX)*SCALE_XZ;
+    c.z0=CZ+(c.z0-CZ)*SCALE_XZ;c.z1=CZ+(c.z1-CZ)*SCALE_XZ;
+    c.y0*=SCALE_Y;c.y1*=SCALE_Y;
+  }
+  for(const r of rooms){
+    r.x0=CX+(r.x0-CX)*SCALE_XZ;r.x1=CX+(r.x1-CX)*SCALE_XZ;
+    r.z0=CZ+(r.z0-CZ)*SCALE_XZ;r.z1=CZ+(r.z1-CZ)*SCALE_XZ;
+  }
+  const hall=groups.living;
+  return{colliders,hit,mats,hall,scale:{xz:SCALE_XZ,y:SCALE_Y},
     setNight(n){lights.forEach(l=>{l.visible=n>.35;});},
     update(dt,p){
       for(const o of tg){o.cur+=(o.t-o.cur)*Math.min(1,dt*6);o.pv.rotation.y=o.cur*o.max;}
