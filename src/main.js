@@ -9,6 +9,7 @@ import {makeLighting} from './lighting.js';
 import {initUI,cfg} from './ui.js';
 import {Debug,applyQuality} from './performance.js';
 import {AudioManager} from './audio.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 
 const $=id=>document.getElementById(id),canvas=$('c'),mobile=input.isTouch;
 const bar=(p,t)=>{$('lbar').style.width=p+'%';$('lpct').textContent=p+'%';if(t)$('ltxt').textContent=t;};
@@ -36,10 +37,10 @@ addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updat
 
 (async()=>{
   bar(5,'Player & input');initInput(cfg);ui=initUI({onPlay:play,onChange});$('bMenu').onclick=pause;await yieldFrame();
-  lit=makeLighting(scene,mobile?700:1800);bar(15,'Large Bengali apartment');await yieldFrame();
-  world=buildWorld(scene);player=new Player(camera,world.colliders,cfg);player.p.set(4.2,0,2.25);player.onStep=()=>audio.step();bar(48,'Roads, trams & neighbourhood');await yieldFrame();
+  lit=makeLighting(scene,mobile?700:1800);{const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),.04).texture;pm.dispose();}bar(15,'Large Bengali apartment');await yieldFrame();
+  world=buildWorld(scene);player=new Player(camera,world.colliders,cfg);player.p.set(...world.start);player.onStep=()=>audio.step();bar(48,'Roads, trams & neighbourhood');await yieldFrame();
   city=buildCity(scene);bar(67,'People & family gathering');await yieldFrame();
-  people=buildPeople(scene,world.hall,[],mobile,audio);traffic=buildTraffic(scene,mobile,audio);bar(82,'Traffic & city ambience');await yieldFrame();
+  people=buildPeople(scene,world.hall,[],mobile,audio,world.bounds);traffic=buildTraffic(scene,mobile,audio);bar(82,'Traffic & city ambience');await yieldFrame();
   city.addFar();dbg=new Debug(renderer,scene,world.colliders,$('hud'),$('dbg'));
   quality();setTime();dispatchEvent(new Event('resize'));bar(100,'Ready');await yieldFrame();
   $('loading').classList.add('hidden');ui.show(false);animate();
@@ -54,6 +55,6 @@ function animate(){
     $('prompt').textContent='Press E — '+(target?.label||'');$('prompt').classList.toggle('hidden',!target);$('bE').classList.toggle('hidden',!(target&&mobile));
     if(input.interact){input.interact=false;if(target){target.use();audio.click();buzz(cfg);}}
   }else input.interact=false;
-  world.update(dt,player.p);people?.update(dt);traffic?.update(dt,camera.position);lit.update(dt,camera.position);
+  world.update(dt,player.p);people?.update(dt);{const tr=traffic?.update(dt,camera.position),P=player.p,A=world.apt;audio.env(P.y<2.8&&P.x>A.x0&&P.x<A.x1&&P.z>A.z0&&P.z<A.z1,tr?tr.near:99);}lit.update(dt,camera.position);
   renderer.render(scene,camera);dbg?.tick(dt);
 }

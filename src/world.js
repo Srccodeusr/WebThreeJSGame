@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {normalFrom,boxUV} from './textures.js';
 // Apartment (x0..14, z0..10, y0..3), balcony (north), stairwell (east), roof (y3.2) and rooftop bathroom. Units: metres.
 const G=new THREE.BoxGeometry(1,1,1),CG=new THREE.CylinderGeometry(1,1,1,16),SG=new THREE.SphereGeometry(1,12,8),SP=new THREE.PlaneGeometry(1,1);
 let s0=7;const rnd=()=>(s0=(s0*16807)%2147483647)/2147483647;
@@ -29,20 +30,21 @@ export function buildWorld(scene){
     water:M(0x8fc7ff,.1,{transparent:true,opacity:.55}),fridge:M(0xd8dde0,.35),mirror:M(0xcfe0e6,.05,{metalness:.9}),
     stain:M(0x4a3a2a,1,{transparent:true,opacity:.22,map:stainT,polygonOffset:true,polygonOffsetFactor:-2,depthWrite:false}),dish:M(0xdddddd,.5,{side:THREE.DoubleSide})};
 
+  const nm=(t,k)=>normalFrom(t.image,k);mats.floor.normalMap=nm(terr,2);mats.conc.normalMap=nm(concT,3);mats.paint.normalMap=mats.body.normalMap=mats.ceil.normalMap=nm(paintT,1.2);mats.tile.normalMap=nm(tileT,4);
   const K=(x0,x1,y0,y1,z0,z1)=>colliders.push({x0,x1,y0,y1,z0,z1});
-  const B=(m,x,y,z,w,h,d,col,p=cur)=>{const o=new THREE.Mesh(G,m);o.scale.set(w,h,d);o.position.set(x,y,z);o.castShadow=o.receiveShadow=true;p.add(o);
+  const B=(m,x,y,z,w,h,d,col,p=cur)=>{let g=G;if(m.map&&p===shell){g=G.clone();boxUV(g,w,h,d,1.25);}const o=new THREE.Mesh(g,m);o.scale.set(w,h,d);o.position.set(x,y,z);o.castShadow=o.receiveShadow=true;p.add(o);
     if(col)K(x-w/2,x+w/2,y-h/2,y+h/2,z-d/2,z+d/2);return o;};
   const Cy=(m,x,y,z,r,h,col,p=cur)=>{const o=new THREE.Mesh(CG,m);o.scale.set(r,h,r);o.position.set(x,y,z);o.castShadow=true;p.add(o);
     if(col)K(x-r,x+r,y-h/2,y+h/2,z-r,z+r);return o;};
   const P=(m,x0,z0,x1,z1,y,s=2,p=shell)=>{const g=new THREE.PlaneGeometry(x1-x0,z1-z0).rotateX(-Math.PI/2),u=g.attributes.uv;
-    for(let i=0;i<u.count;i++)u.setXY(i,u.getX(i)*(x1-x0)/s,u.getY(i)*(z1-z0)/s);const o=new THREE.Mesh(g,m);o.position.set((x0+x1)/2,y,(z0+z1)/2);o.receiveShadow=true;p.add(o);};
+    for(let i=0;i<u.count;i++)u.setXY(i,u.getX(i)*(x1-x0)/s*2,u.getY(i)*(z1-z0)/s*2);const o=new THREE.Mesh(g,m);o.position.set((x0+x1)/2,y,(z0+z1)/2);o.receiveShadow=true;p.add(o);};
   const inst=(g,m,l,p=cur)=>{const o=new THREE.InstancedMesh(g,m,l.length),d=new THREE.Object3D();
     l.forEach((a,i)=>{d.position.set(a[0],a[1],a[2]);d.scale.set(a[3],a[4],a[5]);d.updateMatrix();o.setMatrixAt(i,d.matrix);});o.castShadow=true;p.add(o);};
   const plants=(l,y)=>{inst(CG,mats.pot,l.map(([x,z])=>[x,y+.2,z,.2,.4,.2]));inst(SG,mats.green,l.map(([x,z])=>[x,y+.65,z,.32,.3,.32]));};
 
   // interaction helpers
   const hinge=(pv,mesh,max,label,c)=>{const o={pv,cur:0,t:0,max,label,use(){o.t=o.t?0:1;if(c)c.on=!o.t;}};mesh.userData.it=o;hit.push(mesh);tg.push(o);};
-  const L=(x,y,z)=>{const l=new THREE.PointLight(0xffe2b0,14,11,1.6);l.position.set(x,y,z);l.visible=false;scene.add(l);lights.push(l);return l;};
+  const L=(x,y,z)=>{const l=new THREE.PointLight(0xffe2b0,20,22,1.3);l.position.set(x,y,z);l.visible=false;scene.add(l);lights.push(l);return l;};
   const SW=(x,y,z,l,ry=0)=>{const s=B(mats.white,x,y,z,.08,.12,.03,0,shell);s.rotation.y=ry;s.userData.it={label:'Light switch',use(){l.visible=!l.visible;}};hit.push(s);};
   const tap=(x,y,z)=>{const t=Cy(mats.metal,x,y,z,.025,.2,0),w=Cy(mats.water,x,y-.3,z,.012,.5,0);w.visible=false;
     t.userData.it={label:'Water tap',use(){w.visible=!w.visible;}};hit.push(t);};
@@ -131,7 +133,7 @@ export function buildWorld(scene){
   for(const z of [7.9,8.1,8.3])Cy(mats.white,4.62,1,z,.03,.16,0);SW(6.15,1.2,4.91,lBa);
   // ---- balcony ----
   at('balcony');L(3,2.6,-1);
-  {const b=[];for(let x=0;x<=7;x+=.11)b.push([x,.55,-2,.02,1.1,.02]);for(let z=-2;z<=0;z+=.11){b.push([0,.55,z,.02,1.1,.02]);b.push([7,.55,z,.02,1.1,.02]);}inst(G,mats.metal,b);}
+  {const b=[];for(let x=0;x<=7;x+=.06)b.push([x,.55,-2,.02,1.1,.02]);for(let z=-2;z<=0;z+=.06){b.push([0,.55,z,.02,1.1,.02]);b.push([7,.55,z,.02,1.1,.02]);}inst(G,mats.metal,b);}
   B(mats.metal,3.5,1.1,-2,7,.04,.04,0);B(mats.metal,0,1.1,-1,.04,.04,2,0);B(mats.metal,7,1.1,-1,.04,.04,2,0);
   K(0,7,0,1.1,-2.05,-1.95);K(-.05,.05,0,1.1,-2,0);K(6.95,7.05,0,1.1,-2,0);
   chair(1.5,-1,Math.PI);B(mats.white,6.3,.4,-1.5,.8,.6,.3,1);plants([[.6,-1.5],[1.2,-1.6],[6.5,-.6]],0);
@@ -165,7 +167,7 @@ export function buildWorld(scene){
 
   // Enlarge the whole apartment while keeping its centre aligned with the neighbourhood.
   // Geometry, lights, interaction targets, room visibility and collision volumes are transformed together.
-  const SCALE_XZ=1.62,SCALE_Y=1.22,CX=7,CZ=5;
+  const SCALE_XZ=2,SCALE_Y=1.25,CX=7,CZ=5;
   for(const o of scene.children){
     if(worldChildren.has(o))continue;
     o.position.x=CX+(o.position.x-CX)*SCALE_XZ;
@@ -182,8 +184,13 @@ export function buildWorld(scene){
     r.x0=CX+(r.x0-CX)*SCALE_XZ;r.x1=CX+(r.x1-CX)*SCALE_XZ;
     r.z0=CZ+(r.z0-CZ)*SCALE_XZ;r.z1=CZ+(r.z1-CZ)*SCALE_XZ;
   }
+  // Reunion seating at true human scale (added after the transform so chairs/tables aren't stretched).
+  at('living');
+  for(const x of [-4.2,4.2,11.5,18.5]){const z=-2.9;Cy(mats.fabric2,x,.37,z,.9,.74,1);Cy(mats.white,x,.76,z,.95,.03,0);Cy(mats.pot,x,.9,z,.08,.25,0);
+    for(let i=0;i<6;i++){const a=i*Math.PI/3;chair(x+Math.cos(a)*1.35,z+Math.sin(a)*1.35,Math.atan2(-Math.cos(a),-Math.sin(a)),0,mats.plastic);}}
+  const apt={x0:CX-7*SCALE_XZ,x1:CX+7*SCALE_XZ,z0:CZ-5*SCALE_XZ,z1:CZ+5*SCALE_XZ};
   const hall=groups.living;
-  return{colliders,hit,mats,hall,scale:{xz:SCALE_XZ,y:SCALE_Y},
+  return{colliders,hit,mats,hall,apt,bounds:{x0:apt.x0+.8,x1:apt.x1-.8,z0:apt.z0+.8,z1:apt.z1-.8},start:[CX+(4.2-CX)*SCALE_XZ,0,CZ+(2.25-CZ)*SCALE_XZ],scale:{xz:SCALE_XZ,y:SCALE_Y},
     setNight(n){lights.forEach(l=>{l.visible=n>.35;});},
     update(dt,p){
       for(const o of tg){o.cur+=(o.t-o.cur)*Math.min(1,dt*6);o.pv.rotation.y=o.cur*o.max;}

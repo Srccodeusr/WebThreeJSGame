@@ -15,14 +15,14 @@ function makeRain(scene,n){
 }
 export function makeLighting(scene,rainCount=1500){
   const hemi=new THREE.HemisphereLight(0xffffff,0x554a3e,1),sun=new THREE.DirectionalLight(0xffffff,3),sc=sun.shadow.camera;
-  sun.target.position.set(7,0,5);sc.left=sc.bottom=-26;sc.right=sc.top=26;sc.near=1;sc.far=140;sun.shadow.bias=-.0004;sun.shadow.normalBias=.03;
-  scene.add(hemi,sun,sun.target);scene.fog=new THREE.Fog(0,30,480);
+  sun.target.position.set(7,0,5);sc.left=sc.bottom=-36;sc.right=sc.top=36;sc.near=1;sc.far=170;sun.shadow.bias=-.0004;sun.shadow.normalBias=.03;
+  scene.add(hemi,sun,sun.target);scene.fog=new THREE.Fog(0,70,520);
   const rain=makeRain(scene,rainCount);
   function setTime(i,r){
     const t=T[i],c=new THREE.Color(t.sky);if(r)c.lerp(new THREE.Color(0x666b70),.6);
     sun.color.set(t.sun);sun.intensity=t.si*(r?.5:1);sun.position.set(7+t.p[0],t.p[1],5+t.p[2]);
     hemi.intensity=t.h*(r?.8:1);hemi.color.copy(c).lerp(new THREE.Color(0xffffff),.5);
-    scene.background=c;scene.fog.color.copy(c);return t.night;
+    scene.background=c;scene.fog.color.copy(c);scene.environmentIntensity=.15+.35*(1-t.night)*(r?.6:1);return t.night;
   }
   return{sun,rain,setTime,update:(dt,pos)=>rain.update(dt,pos)};
 }
